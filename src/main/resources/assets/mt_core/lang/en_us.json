@@ -1,0 +1,13 @@
+{
+  "itemGroup.mt_core": "Example Mod Tab",
+  "block.mt_core.example_block": "Example Block",
+  "item.mt_core.example_item": "Example Item",
+
+  "mt_core.configuration.title": "MT Core Configs",
+  "mt_core.configuration.section.mt_core.common.toml": "MT Core Configs",
+  "mt_core.configuration.section.mt_core.common.toml.title": "MT Core Configs",
+  "mt_core.configuration.items": "Item List",
+  "mt_core.configuration.logDirtBlock": "Log Dirt Block",
+  "mt_core.configuration.magicNumberIntroduction": "Magic Number Text",
+  "mt_core.configuration.magicNumber": "Magic Number"
+}
