@@ -25,7 +25,6 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -167,12 +166,13 @@ public class SmartHatchRenderer implements IRenderer {
         HATCH_PARTS.add("mbd2:super_ae2_pattern");
     }
 
-    private List<BakedQuad> getQuadsFromModel(ModelResourceLocation loc, @Nullable Direction side, RandomSource rand, ModelData data) {
+    private List<BakedQuad> getQuadsFromModel(ModelResourceLocation loc, @Nullable BlockAndTintGetter level, @Nullable BlockPos pos, @Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData data, @Nullable RenderType renderType) {
         BakedModel model = Minecraft.getInstance().getModelManager().getModel(loc);
         if (model == Minecraft.getInstance().getModelManager().getMissingModel()) {
-            return new ArrayList<>();
+            return originalRenderer.renderModel(level, pos, state, side, rand, data, renderType);
         }
-        return model.getQuads(null, side, rand, data, RenderType.translucent());
+        List<BakedQuad> quads = model.getQuads(null, side, rand, data, RenderType.translucent());
+        return quads.isEmpty() ? originalRenderer.renderModel(level, pos, state, side, rand, data, renderType) : quads;
     }
 
     @Override
@@ -182,13 +182,18 @@ public class SmartHatchRenderer implements IRenderer {
             return originalRenderer.renderModel(level, pos, state, side, rand, data, renderType);
         }
 
-        IMachine machine = IMachine.ofMachine(level, pos).orElse(null);
+        var blockEntity = level.getBlockEntity(pos);
+        IMachine machine = IMachine.ofMachine(blockEntity).orElse(null);
 
         if (machine instanceof MBDPartMachine partMachine) {
+            var machineLevel = partMachine.getLevel();
+            if (machineLevel == null) {
+                return originalRenderer.renderModel(level, pos, state, side, rand, data, renderType);
+            }
             if (partMachine.isFormed()) {
                 for (com.lowdragmc.mbd2.api.machine.IMultiController controller : partMachine.getControllers()) {
                     if (controller != null && controller.isFormed()) {
-                        var mainMachineOpt = IMachine.ofMachine(level, controller.getPos());
+                        var mainMachineOpt = IMachine.ofMachine(machineLevel, controller.getPos());
                         if (mainMachineOpt.isPresent() && mainMachineOpt.get() instanceof MBDMachine mainMachine) {
 
                             String mainMachineId = mainMachine.getDefinition().id().toString();
@@ -204,62 +209,62 @@ public class SmartHatchRenderer implements IRenderer {
                                     switch (partMachineId) {
 
                                         //物品仓
-                                        case "mbd2:item_input": return getQuadsFromModel(final_item_input, side, rand, data);
-                                        case "mbd2:item_output": return getQuadsFromModel(final_item_output, side, rand, data);
-                                        case "mbd2:super_item_input": return getQuadsFromModel(final_item_input, side, rand, data);
-                                        case "mbd2:super_item_output": return getQuadsFromModel(final_item_output, side, rand, data);
-                                        case "mbd2:final_item_input": return getQuadsFromModel(final_item_input, side, rand, data);
-                                        case "mbd2:final_item_output": return getQuadsFromModel(final_item_output, side, rand, data);
+                                        case "mbd2:item_input": return getQuadsFromModel(final_item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:item_output": return getQuadsFromModel(final_item_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_item_input": return getQuadsFromModel(final_item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_item_output": return getQuadsFromModel(final_item_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_item_input": return getQuadsFromModel(final_item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_item_output": return getQuadsFromModel(final_item_output, level, pos, state, side, rand, data, renderType);
 
                                         //流体仓
-                                        case "mbd2:fluid_input": return getQuadsFromModel(final_fluid_input, side, rand, data);
-                                        case "mbd2:fluid_output": return getQuadsFromModel(final_fluid_output, side, rand, data);
-                                        case "mbd2:super_fluid_input": return getQuadsFromModel(final_fluid_input, side, rand, data);
-                                        case "mbd2:super_fluid_output": return getQuadsFromModel(final_fluid_output, side, rand, data);
-                                        case "mbd2:final_fluid_input": return getQuadsFromModel(final_fluid_input, side, rand, data);
-                                        case "mbd2:final_fluid_output": return getQuadsFromModel(final_fluid_output, side, rand, data);
+                                        case "mbd2:fluid_input": return getQuadsFromModel(final_fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:fluid_output": return getQuadsFromModel(final_fluid_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fluid_input": return getQuadsFromModel(final_fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fluid_output": return getQuadsFromModel(final_fluid_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fluid_input": return getQuadsFromModel(final_fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fluid_output": return getQuadsFromModel(final_fluid_output, level, pos, state, side, rand, data, renderType);
 
                                         //化学品仓
-                                        case "mbd2:gas_input": return getQuadsFromModel(final_gas_input, side, rand, data);
-                                        case "mbd2:gas_output": return getQuadsFromModel(final_gas_output, side, rand, data);
-                                        case "mbd2:super_gas_input": return getQuadsFromModel(final_gas_input, side, rand, data);
-                                        case "mbd2:super_gas_output": return getQuadsFromModel(final_gas_output, side, rand, data);
-                                        case "mbd2:final_gas_input": return getQuadsFromModel(final_gas_input, side, rand, data);
-                                        case "mbd2:final_gas_output": return getQuadsFromModel(final_gas_output, side, rand, data);
+                                        case "mbd2:gas_input": return getQuadsFromModel(final_gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:gas_output": return getQuadsFromModel(final_gas_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_gas_input": return getQuadsFromModel(final_gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_gas_output": return getQuadsFromModel(final_gas_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_gas_input": return getQuadsFromModel(final_gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_gas_output": return getQuadsFromModel(final_gas_output, level, pos, state, side, rand, data, renderType);
 
                                         //集成仓
-                                        case "mbd2:all_input": return getQuadsFromModel(final_all_input, side, rand, data);
-                                        case "mbd2:all_output": return getQuadsFromModel(final_all_output, side, rand, data);
-                                        case "mbd2:super_all_input": return getQuadsFromModel(final_all_input, side, rand, data);
-                                        case "mbd2:super_all_output": return getQuadsFromModel(final_all_output, side, rand, data);
-                                        case "mbd2:final_all_input": return getQuadsFromModel(final_all_input, side, rand, data);
-                                        case "mbd2:final_all_output": return getQuadsFromModel(final_all_output, side, rand, data);
+                                        case "mbd2:all_input": return getQuadsFromModel(final_all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:all_output": return getQuadsFromModel(final_all_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_all_input": return getQuadsFromModel(final_all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_all_output": return getQuadsFromModel(final_all_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_all_input": return getQuadsFromModel(final_all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_all_output": return getQuadsFromModel(final_all_output, level, pos, state, side, rand, data, renderType);
 
                                         //能量仓
-                                        case "mbd2:fe_input": return getQuadsFromModel(final_fe_input, side, rand, data);
-                                        case "mbd2:fe_output": return getQuadsFromModel(final_fe_output, side, rand, data);
-                                        case "mbd2:super_fe_input": return getQuadsFromModel(final_fe_input, side, rand, data);
-                                        case "mbd2:super_fe_output": return getQuadsFromModel(final_fe_output, side, rand, data);
-                                        case "mbd2:final_fe_input": return getQuadsFromModel(final_fe_input, side, rand, data);
-                                        case "mbd2:final_fe_output": return getQuadsFromModel(final_fe_output, side, rand, data);
+                                        case "mbd2:fe_input": return getQuadsFromModel(final_fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:fe_output": return getQuadsFromModel(final_fe_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fe_input": return getQuadsFromModel(final_fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fe_output": return getQuadsFromModel(final_fe_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fe_input": return getQuadsFromModel(final_fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fe_output": return getQuadsFromModel(final_fe_output, level, pos, state, side, rand, data, renderType);
 
                                         //特殊仓室
-                                        case "mbd2:simple_prl_hatch": return getQuadsFromModel(super_prl_hatch, side, rand, data);
-                                        case "mbd2:prl_hatch": return getQuadsFromModel(super_prl_hatch, side, rand, data);
-                                        case "mbd2:super_prl_hatch": return getQuadsFromModel(super_prl_hatch, side, rand, data);
+                                        case "mbd2:simple_prl_hatch": return getQuadsFromModel(super_prl_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:prl_hatch": return getQuadsFromModel(super_prl_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_prl_hatch": return getQuadsFromModel(super_prl_hatch, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:simple_speed_hatch": return getQuadsFromModel(super_speed_hatch, side, rand, data);
-                                        case "mbd2:speed_hatch": return getQuadsFromModel(super_speed_hatch, side, rand, data);
-                                        case "mbd2:super_speed_hatch": return getQuadsFromModel(super_speed_hatch, side, rand, data);
+                                        case "mbd2:simple_speed_hatch": return getQuadsFromModel(super_speed_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:speed_hatch": return getQuadsFromModel(super_speed_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_speed_hatch": return getQuadsFromModel(super_speed_hatch, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:ae2_pattern": return getQuadsFromModel(super_ae2_pattern, side, rand, data);
+                                        case "mbd2:ae2_pattern": return getQuadsFromModel(super_ae2_pattern, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:simple_ae2_input": return getQuadsFromModel(super_ae2_input, side, rand, data);
-                                        case "mbd2:simple_ae2_output": return getQuadsFromModel(super_ae2_output, side, rand, data);
-                                        case "mbd2:ae2_input": return getQuadsFromModel(super_ae2_input, side, rand, data);
-                                        case "mbd2:ae2_output": return getQuadsFromModel(super_ae2_output, side, rand, data);
-                                        case "mbd2:super_ae2_input": return getQuadsFromModel(super_ae2_input, side, rand, data);
-                                        case "mbd2:super_ae2_output": return getQuadsFromModel(super_ae2_output, side, rand, data);
+                                        case "mbd2:simple_ae2_input": return getQuadsFromModel(super_ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:simple_ae2_output": return getQuadsFromModel(super_ae2_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:ae2_input": return getQuadsFromModel(super_ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:ae2_output": return getQuadsFromModel(super_ae2_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_ae2_input": return getQuadsFromModel(super_ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_ae2_output": return getQuadsFromModel(super_ae2_output, level, pos, state, side, rand, data, renderType);
                                     }
                                     break;
 
@@ -277,62 +282,62 @@ public class SmartHatchRenderer implements IRenderer {
 
                                     switch (partMachineId) {
                                         //物品仓
-                                        case "mbd2:item_input": return getQuadsFromModel(super_item_input, side, rand, data);
-                                        case "mbd2:item_output": return getQuadsFromModel(super_item_output, side, rand, data);
-                                        case "mbd2:super_item_input": return getQuadsFromModel(super_item_input, side, rand, data);
-                                        case "mbd2:super_item_output": return getQuadsFromModel(super_item_output, side, rand, data);
-                                        case "mbd2:final_item_input": return getQuadsFromModel(super_item_input, side, rand, data);
-                                        case "mbd2:final_item_output": return getQuadsFromModel(super_item_output, side, rand, data);
+                                        case "mbd2:item_input": return getQuadsFromModel(super_item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:item_output": return getQuadsFromModel(super_item_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_item_input": return getQuadsFromModel(super_item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_item_output": return getQuadsFromModel(super_item_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_item_input": return getQuadsFromModel(super_item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_item_output": return getQuadsFromModel(super_item_output, level, pos, state, side, rand, data, renderType);
 
                                         //流体仓
-                                        case "mbd2:fluid_input": return getQuadsFromModel(super_fluid_input, side, rand, data);
-                                        case "mbd2:fluid_output": return getQuadsFromModel(super_fluid_output, side, rand, data);
-                                        case "mbd2:super_fluid_input": return getQuadsFromModel(super_fluid_input, side, rand, data);
-                                        case "mbd2:super_fluid_output": return getQuadsFromModel(super_fluid_output, side, rand, data);
-                                        case "mbd2:final_fluid_input": return getQuadsFromModel(super_fluid_input, side, rand, data);
-                                        case "mbd2:final_fluid_output": return getQuadsFromModel(super_fluid_output, side, rand, data);
+                                        case "mbd2:fluid_input": return getQuadsFromModel(super_fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:fluid_output": return getQuadsFromModel(super_fluid_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fluid_input": return getQuadsFromModel(super_fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fluid_output": return getQuadsFromModel(super_fluid_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fluid_input": return getQuadsFromModel(super_fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fluid_output": return getQuadsFromModel(super_fluid_output, level, pos, state, side, rand, data, renderType);
 
                                         //化学品仓
-                                        case "mbd2:gas_input": return getQuadsFromModel(super_gas_input, side, rand, data);
-                                        case "mbd2:gas_output": return getQuadsFromModel(super_gas_output, side, rand, data);
-                                        case "mbd2:super_gas_input": return getQuadsFromModel(super_gas_input, side, rand, data);
-                                        case "mbd2:super_gas_output": return getQuadsFromModel(super_gas_output, side, rand, data);
-                                        case "mbd2:final_gas_input": return getQuadsFromModel(super_gas_input, side, rand, data);
-                                        case "mbd2:final_gas_output": return getQuadsFromModel(super_gas_output, side, rand, data);
+                                        case "mbd2:gas_input": return getQuadsFromModel(super_gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:gas_output": return getQuadsFromModel(super_gas_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_gas_input": return getQuadsFromModel(super_gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_gas_output": return getQuadsFromModel(super_gas_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_gas_input": return getQuadsFromModel(super_gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_gas_output": return getQuadsFromModel(super_gas_output, level, pos, state, side, rand, data, renderType);
 
                                         //集成仓
-                                        case "mbd2:all_input": return getQuadsFromModel(super_all_input, side, rand, data);
-                                        case "mbd2:all_output": return getQuadsFromModel(super_all_output, side, rand, data);
-                                        case "mbd2:super_all_input": return getQuadsFromModel(super_all_input, side, rand, data);
-                                        case "mbd2:super_all_output": return getQuadsFromModel(super_all_output, side, rand, data);
-                                        case "mbd2:final_all_input": return getQuadsFromModel(super_all_input, side, rand, data);
-                                        case "mbd2:final_all_output": return getQuadsFromModel(super_all_output, side, rand, data);
+                                        case "mbd2:all_input": return getQuadsFromModel(super_all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:all_output": return getQuadsFromModel(super_all_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_all_input": return getQuadsFromModel(super_all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_all_output": return getQuadsFromModel(super_all_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_all_input": return getQuadsFromModel(super_all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_all_output": return getQuadsFromModel(super_all_output, level, pos, state, side, rand, data, renderType);
 
                                         //能量仓
-                                        case "mbd2:fe_input": return getQuadsFromModel(super_fe_input, side, rand, data);
-                                        case "mbd2:fe_output": return getQuadsFromModel(super_fe_output, side, rand, data);
-                                        case "mbd2:super_fe_input": return getQuadsFromModel(super_fe_input, side, rand, data);
-                                        case "mbd2:super_fe_output": return getQuadsFromModel(super_fe_output, side, rand, data);
-                                        case "mbd2:final_fe_input": return getQuadsFromModel(super_fe_input, side, rand, data);
-                                        case "mbd2:final_fe_output": return getQuadsFromModel(super_fe_output, side, rand, data);
+                                        case "mbd2:fe_input": return getQuadsFromModel(super_fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:fe_output": return getQuadsFromModel(super_fe_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fe_input": return getQuadsFromModel(super_fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fe_output": return getQuadsFromModel(super_fe_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fe_input": return getQuadsFromModel(super_fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fe_output": return getQuadsFromModel(super_fe_output, level, pos, state, side, rand, data, renderType);
 
                                         //特殊仓室
-                                        case "mbd2:simple_prl_hatch": return getQuadsFromModel(prl_hatch, side, rand, data);
-                                        case "mbd2:prl_hatch": return getQuadsFromModel(prl_hatch, side, rand, data);
-                                        case "mbd2:super_prl_hatch": return getQuadsFromModel(prl_hatch, side, rand, data);
+                                        case "mbd2:simple_prl_hatch": return getQuadsFromModel(prl_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:prl_hatch": return getQuadsFromModel(prl_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_prl_hatch": return getQuadsFromModel(prl_hatch, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:simple_speed_hatch": return getQuadsFromModel(speed_hatch, side, rand, data);
-                                        case "mbd2:speed_hatch": return getQuadsFromModel(speed_hatch, side, rand, data);
-                                        case "mbd2:super_speed_hatch": return getQuadsFromModel(speed_hatch, side, rand, data);
+                                        case "mbd2:simple_speed_hatch": return getQuadsFromModel(speed_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:speed_hatch": return getQuadsFromModel(speed_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_speed_hatch": return getQuadsFromModel(speed_hatch, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:ae2_pattern": return getQuadsFromModel(ae2_pattern, side, rand, data);
+                                        case "mbd2:ae2_pattern": return getQuadsFromModel(ae2_pattern, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:simple_ae2_input": return getQuadsFromModel(ae2_input, side, rand, data);
-                                        case "mbd2:simple_ae2_output": return getQuadsFromModel(ae2_output, side, rand, data);
-                                        case "mbd2:ae2_input": return getQuadsFromModel(ae2_input, side, rand, data);
-                                        case "mbd2:ae2_output": return getQuadsFromModel(ae2_output, side, rand, data);
-                                        case "mbd2:super_ae2_input": return getQuadsFromModel(ae2_input, side, rand, data);
-                                        case "mbd2:super_ae2_output": return getQuadsFromModel(ae2_output, side, rand, data);
+                                        case "mbd2:simple_ae2_input": return getQuadsFromModel(ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:simple_ae2_output": return getQuadsFromModel(ae2_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:ae2_input": return getQuadsFromModel(ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:ae2_output": return getQuadsFromModel(ae2_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_ae2_input": return getQuadsFromModel(ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_ae2_output": return getQuadsFromModel(ae2_output, level, pos, state, side, rand, data, renderType);
                                     }
                                     break;
 
@@ -345,62 +350,62 @@ public class SmartHatchRenderer implements IRenderer {
 
                                     switch (partMachineId) {
                                         //物品仓
-                                        case "mbd2:item_input": return getQuadsFromModel(item_input, side, rand, data);
-                                        case "mbd2:item_output": return getQuadsFromModel(item_output, side, rand, data);
-                                        case "mbd2:super_item_input": return getQuadsFromModel(item_input, side, rand, data);
-                                        case "mbd2:super_item_output": return getQuadsFromModel(item_output, side, rand, data);
-                                        case "mbd2:final_item_input": return getQuadsFromModel(item_input, side, rand, data);
-                                        case "mbd2:final_item_output": return getQuadsFromModel(item_output, side, rand, data);
+                                        case "mbd2:item_input": return getQuadsFromModel(item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:item_output": return getQuadsFromModel(item_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_item_input": return getQuadsFromModel(item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_item_output": return getQuadsFromModel(item_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_item_input": return getQuadsFromModel(item_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_item_output": return getQuadsFromModel(item_output, level, pos, state, side, rand, data, renderType);
 
                                         //流体仓
-                                        case "mbd2:fluid_input": return getQuadsFromModel(fluid_input, side, rand, data);
-                                        case "mbd2:fluid_output": return getQuadsFromModel(fluid_output, side, rand, data);
-                                        case "mbd2:super_fluid_input": return getQuadsFromModel(fluid_input, side, rand, data);
-                                        case "mbd2:super_fluid_output": return getQuadsFromModel(fluid_output, side, rand, data);
-                                        case "mbd2:final_fluid_input": return getQuadsFromModel(fluid_input, side, rand, data);
-                                        case "mbd2:final_fluid_output": return getQuadsFromModel(fluid_output, side, rand, data);
+                                        case "mbd2:fluid_input": return getQuadsFromModel(fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:fluid_output": return getQuadsFromModel(fluid_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fluid_input": return getQuadsFromModel(fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fluid_output": return getQuadsFromModel(fluid_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fluid_input": return getQuadsFromModel(fluid_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fluid_output": return getQuadsFromModel(fluid_output, level, pos, state, side, rand, data, renderType);
 
                                         //化学品仓
-                                        case "mbd2:gas_input": return getQuadsFromModel(gas_input, side, rand, data);
-                                        case "mbd2:gas_output": return getQuadsFromModel(gas_output, side, rand, data);
-                                        case "mbd2:super_gas_input": return getQuadsFromModel(gas_input, side, rand, data);
-                                        case "mbd2:super_gas_output": return getQuadsFromModel(gas_output, side, rand, data);
-                                        case "mbd2:final_gas_input": return getQuadsFromModel(gas_input, side, rand, data);
-                                        case "mbd2:final_gas_output": return getQuadsFromModel(gas_output, side, rand, data);
+                                        case "mbd2:gas_input": return getQuadsFromModel(gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:gas_output": return getQuadsFromModel(gas_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_gas_input": return getQuadsFromModel(gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_gas_output": return getQuadsFromModel(gas_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_gas_input": return getQuadsFromModel(gas_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_gas_output": return getQuadsFromModel(gas_output, level, pos, state, side, rand, data, renderType);
 
                                         //集成仓
-                                        case "mbd2:all_input": return getQuadsFromModel(all_input, side, rand, data);
-                                        case "mbd2:all_output": return getQuadsFromModel(all_output, side, rand, data);
-                                        case "mbd2:super_all_input": return getQuadsFromModel(all_input, side, rand, data);
-                                        case "mbd2:super_all_output": return getQuadsFromModel(all_output, side, rand, data);
-                                        case "mbd2:final_all_input": return getQuadsFromModel(all_input, side, rand, data);
-                                        case "mbd2:final_all_output": return getQuadsFromModel(all_output, side, rand, data);
+                                        case "mbd2:all_input": return getQuadsFromModel(all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:all_output": return getQuadsFromModel(all_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_all_input": return getQuadsFromModel(all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_all_output": return getQuadsFromModel(all_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_all_input": return getQuadsFromModel(all_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_all_output": return getQuadsFromModel(all_output, level, pos, state, side, rand, data, renderType);
 
                                         //能量仓
-                                        case "mbd2:fe_input": return getQuadsFromModel(fe_input, side, rand, data);
-                                        case "mbd2:fe_output": return getQuadsFromModel(fe_output, side, rand, data);
-                                        case "mbd2:super_fe_input": return getQuadsFromModel(fe_input, side, rand, data);
-                                        case "mbd2:super_fe_output": return getQuadsFromModel(fe_output, side, rand, data);
-                                        case "mbd2:final_fe_input": return getQuadsFromModel(fe_input, side, rand, data);
-                                        case "mbd2:final_fe_output": return getQuadsFromModel(fe_output, side, rand, data);
+                                        case "mbd2:fe_input": return getQuadsFromModel(fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:fe_output": return getQuadsFromModel(fe_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fe_input": return getQuadsFromModel(fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_fe_output": return getQuadsFromModel(fe_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fe_input": return getQuadsFromModel(fe_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:final_fe_output": return getQuadsFromModel(fe_output, level, pos, state, side, rand, data, renderType);
 
                                         //特殊仓室
-                                        case "mbd2:simple_prl_hatch": return getQuadsFromModel(simple_prl_hatch, side, rand, data);
-                                        case "mbd2:prl_hatch": return getQuadsFromModel(simple_prl_hatch, side, rand, data);
-                                        case "mbd2:super_prl_hatch": return getQuadsFromModel(simple_prl_hatch, side, rand, data);
+                                        case "mbd2:simple_prl_hatch": return getQuadsFromModel(simple_prl_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:prl_hatch": return getQuadsFromModel(simple_prl_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_prl_hatch": return getQuadsFromModel(simple_prl_hatch, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:simple_speed_hatch": return getQuadsFromModel(simple_speed_hatch, side, rand, data);
-                                        case "mbd2:speed_hatch": return getQuadsFromModel(simple_speed_hatch, side, rand, data);
-                                        case "mbd2:super_speed_hatch": return getQuadsFromModel(simple_speed_hatch, side, rand, data);
+                                        case "mbd2:simple_speed_hatch": return getQuadsFromModel(simple_speed_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:speed_hatch": return getQuadsFromModel(simple_speed_hatch, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_speed_hatch": return getQuadsFromModel(simple_speed_hatch, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:ae2_pattern": return getQuadsFromModel(simple_ae2_pattern, side, rand, data);
+                                        case "mbd2:ae2_pattern": return getQuadsFromModel(simple_ae2_pattern, level, pos, state, side, rand, data, renderType);
 
-                                        case "mbd2:simple_ae2_input": return getQuadsFromModel(simple_ae2_input, side, rand, data);
-                                        case "mbd2:simple_ae2_output": return getQuadsFromModel(simple_ae2_output, side, rand, data);
-                                        case "mbd2:ae2_input": return getQuadsFromModel(simple_ae2_input, side, rand, data);
-                                        case "mbd2:ae2_output": return getQuadsFromModel(simple_ae2_output, side, rand, data);
-                                        case "mbd2:super_ae2_input": return getQuadsFromModel(simple_ae2_input, side, rand, data);
-                                        case "mbd2:super_ae2_output": return getQuadsFromModel(simple_ae2_output, side, rand, data);
+                                        case "mbd2:simple_ae2_input": return getQuadsFromModel(simple_ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:simple_ae2_output": return getQuadsFromModel(simple_ae2_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:ae2_input": return getQuadsFromModel(simple_ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:ae2_output": return getQuadsFromModel(simple_ae2_output, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_ae2_input": return getQuadsFromModel(simple_ae2_input, level, pos, state, side, rand, data, renderType);
+                                        case "mbd2:super_ae2_output": return getQuadsFromModel(simple_ae2_output, level, pos, state, side, rand, data, renderType);
                                     }
                                     break;
                             }
